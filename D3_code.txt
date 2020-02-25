@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+
+<!-- Google fonts Second Reference-->  
+<link href="https://fonts.googleapis.com/css?family=Barlow:100,200,300,400,500&display=swap" rel="stylesheet">
+<div class="controls">
+  <a href="#" onclick="location['reload']()">Refresh</a>
+  |
+  <a id="download" href="#" download="graph.png">Download</a>
+</div>
+<div class="graph"></div>
+
+<!-- Connecting with D3 library-->
+<script src="https://d3js.org/d3.v4.min.js" charset="utf-8"></script>
+<script src="force-chart.js"></script>
+
+<!-- Creating the headlines -->
+<p id="h1"> Suicide Rate 1985 to 2015</p>
+<p id="h2"> per 100k by country  </p>
+<div id="link"> Source: 
+<a href="https://data.oecd.org/forest/forest-resources.htm">OECD 2019</a></div>
+ 
+<style>
+
+/*Defining text stylings*/ 
+.controls {
+  padding: 10px 0;
+  text-align: right;
+}
+  
+#h1 {
+  font-size: 32px;
+  margin: 0px 0px 2px 0px;
+  font-family: 'Barlow', sans-serif;
+  font-weight: 300;
+  font-variant: small-caps slashed-zero;
+  color: #f20675;
+  }
+  
+#h2 {
+  font-size: 18px;
+  margin: 0px 0px 0px 0px;
+  font-family: 'Barlow', sans-serif;
+  font-weight: 100;
+  font-variant: small-caps slashed-zero;
+  color: #1ce3cd;
+  }
+  
+#link {
+	font-family: 'Barlow', sans-serif;
+  font-size: 5px;
+  font-variant: small-caps slashed-zero;
+	margin: 10px 10px 2px 0px;
+  color: #cecece;
+}
+ 
+a:link, a:visited, a:active {
+	text-decoration: none;
+  color: #cccccc;
+  border-bottom: 0.7px dotted #cccccc;
+}
+  
+body {
+  background-color:#111111;
+}
+            
+/*Defining axis stylings*/
+
+.x-axis text,  .y-axis text {
+        font-family: 'Barlow', sans-serif;
+      	font-weight: 100;
+        font-size:8px;
+      	opacity:0.8;
+        fill: #cccccc;
+      }
+
+.y-axis path, .x-axis path {
+        fill: none;
+        stroke-width: 0.3;
+        stroke-opacity:0.8;
+        stroke: #cccccc;
+      }
+
+.x-axis line, .y-axis line {
+        fill: none;
+        stroke-width: 0;
+        stroke-opacity:0.8;
+        stroke: #cccccc;
+      }
+  
+/*Defining chart stylings*/
+  
+.line_n {
+  stroke-width: 1.5px;
+  stroke-dasharray: 2; 
+  stroke: #f20675;
+  fill:NONE;
+}
+  
+.area_prop {
+  fill:#f20675;
+  opacity:0.2;
+} 
+  
+.area_prop:hover {
+  opacity:1;
+  stroke:none;
+}
+  
+.titles {
+  font-family: 'Barlow', sans-serif;
+  font-variant: small-caps slashed-zero;
+  font-weight: 100;
+  font-size:13px;
+  fill:#1ce3cd;
+}
+  
+</style>
+
+<script>
+  
+//Margin conventions - set to 0 because of the small multiple
+var margin = {top: 0, right: 0, bottom: 0, left: 0};
+var width = 0
+var height = 0
+
+//Container  
+var svg = d3.select("body")
+						.append("svg")
+            .attr("width", width)
+            .attr("height", height + margin.top + margin.bottom)
+            .append("g")
+            .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+//Margin conventions for the small multiple container
+var margin_small_svg = {top: 30, right: 30, bottom: 30, left: 40};
+var width_small_svg = 200 - margin_small_svg.left - margin_small_svg.right;
+var height_small_svg = 150 - margin_small_svg.top - margin_small_svg.bottom;
+          
+//Define the format
+var parseDate = d3.timeParse("%Y");
+var formatDate = d3.timeFormat("%y");
+var formatNumber = d3.format(".0s");
+        
+//Data loading   
+d3.csv('https://gist.githubusercontent.com/San-dra/3795576856059eaba0db82050e409527/raw/0fcd4723149b5a736dba2fa0e189b0e81765269b/SuicidePerCountryAllYears.csv', function(data) {
+  
+//Data format
+data.forEach((d)=> {d.Value = +d.suicides_per100k; d.TIME = parseDate(d.year);});
+  
+//Nesting the data by symbol 
+var country = d3.nest()
+						    .key(d=> d.country)
+                .entries(data);   
+    
+//Total list of names
+allKeys = country.map(d=> d.key)
+
+
+//Small multiple container
+var small_svg = d3.select("svg")
+                  .data(country)
+                  .enter()
+                  .append("svg")
+                  .attr("width", width_small_svg + margin_small_svg.left + margin_small_svg.right)
+                  .attr("height", height_small_svg + margin_small_svg.top + margin_small_svg.bottom)
+                  .append("g")
+                  .attr("transform",
+            "translate(" + margin_small_svg.left + "," + margin_small_svg.top + ")");
+
+//X scale    
+var x = d3.scaleTime()
+          .range([0, width_small_svg])
+					.domain(d3.extent(data, d=> d.TIME));
+ 
+//X Axis     
+small_svg.append("g")
+   .attr("class", "x-axis")
+   .attr("transform", "translate(0," + height_small_svg + ")")  
+   .call(d3.axisBottom(x)
+         .ticks(3)
+      	 .tickFormat(formatDate));
+ 
+//Y scale
+var y = d3.scaleLinear()
+          .domain([0, d3.max(data, d => +d.Value)])
+          .range([height_small_svg, 0]);
+  
+//Y axis  
+small_svg.append("g")
+         .attr("class", "y-axis")
+         .call(d3.axisLeft(y)
+                 .ticks(1)
+              	 .tickFormat(formatNumber));
+    
+//Area generator 
+var area_prop = d3.area()
+                  .x(d => x(d.TIME))
+                  .y0(y(0))
+                  .y1(d => y(d.Value));
+
+//Line generator 
+var line_n = d3.line()
+               .x(d => x(d.TIME))
+               .y(d => y(d.Value));
+
+//Draw the line  
+small_svg
+ .append("path")
+ .attr("class", "line_n")
+ .attr("d", d => line_n(d.values))
+
+//Draw the area 
+small_svg
+ .append("path")
+ .attr("class", "area_prop")
+ .attr("d", d => area_prop(d.values))
+
+//Adding the titles 
+small_svg
+  .append("text")
+  .attr("text-anchor", "start")
+  .attr("y", -15)
+  .attr("x", -5)
+  .attr("class", 'titles')
+  .text(d => (d.key))
+})
+
+</script>
